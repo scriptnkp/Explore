@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ระบบสำรวจข้อมูลหม้อแปลง</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">⚡</span>
+    <span class="brand-name">สำรวจหม้อแปลง</span>
+  </div>
+  <div id="crumb" class="crumb"></div>
+</header>
+
+<main id="app" class="app"></main>
+
+<nav class="tabbar">
+  <button class="tab-btn active" data-view="home"><span>🏠</span><small>หน้าแรก</small></button>
+  <button class="tab-btn" data-view="history"><span>🗂️</span><small>ประวัติ</small></button>
+  <button class="tab-btn" data-view="dashboard"><span>🗺️</span><small>แผนที่</small></button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
