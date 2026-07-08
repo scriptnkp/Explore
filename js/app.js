@@ -237,7 +237,31 @@ function renderPeaDetail() {
       <input type="text" id="sizeInput" value="${escapeHtml(String(p.size ?? ''))}"></div>
     <div class="field"><label>ที่อยู่</label>
       <input type="text" id="addressInput" value="${escapeHtml(p.address ?? '')}"></div>
-    <p class="hint">feeder: ${escapeHtml(p.feederid || '-')} · lat/lon: ${p.lat}, ${p.lon}</p>`;
+    <p class="hint">feeder: ${escapeHtml(p.feederid || '-')}</p>
+    <div class="field-row">
+      <div class="field"><label>ละติจูด (lat)</label>
+        <input type="text" id="latInput" value="${escapeHtml(String(p.lat ?? ''))}"></div>
+      <div class="field"><label>ลองจิจูด (lon)</label>
+        <input type="text" id="lonInput" value="${escapeHtml(String(p.lon ?? ''))}"></div>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" id="gpsBtn">📍 ดึงพิกัดปัจจุบัน (GPS)</button>
+    <p class="hint" id="gpsStatus"></p>`;
+  document.getElementById('gpsBtn').addEventListener('click', captureGps);
+}
+
+function captureGps() {
+  const status = document.getElementById('gpsStatus');
+  if (!navigator.geolocation) { status.textContent = 'อุปกรณ์นี้ไม่รองรับ GPS'; return; }
+  status.textContent = 'กำลังค้นหาตำแหน่ง...';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('latInput').value = pos.coords.latitude.toFixed(7);
+      document.getElementById('lonInput').value = pos.coords.longitude.toFixed(7);
+      status.textContent = `ดึงพิกัดสำเร็จ (ความแม่นยำ ~${Math.round(pos.coords.accuracy)} ม.)`;
+    },
+    (err) => { status.textContent = 'ดึงพิกัดไม่สำเร็จ: ' + err.message; },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
 }
 
 function uploadBoxHtml(cat) {
@@ -245,7 +269,7 @@ function uploadBoxHtml(cat) {
   return `
     <label class="upload-box" for="${id}">
       เลือก / ถ่ายภาพ${PHOTO_LABEL[cat] ? ' ' + PHOTO_LABEL[cat] : ''} (อัปโหลดได้มากกว่า 1 รูป)<br>
-      <input type="file" id="${id}" accept="image/*" capture="environment" multiple>
+      <input type="file" id="${id}" accept="image/*" multiple>
     </label>
     <div class="thumbs" id="thumbs_${cat}"></div>`;
 }
@@ -288,8 +312,8 @@ async function submitForm() {
     'ที่อยู่': document.getElementById('addressInput').value,
     'ขนาด': document.getElementById('sizeInput').value,
     feederid: state.selectedPea.feederid,
-    lat: state.selectedPea.lat,
-    lon: state.selectedPea.lon,
+    lat: document.getElementById('latInput').value,
+    lon: document.getElementById('lonInput').value,
     new_transformer_code: document.getElementById('newTrCode').value,
     new_transformer_size: document.getElementById('newTrSize').value,
     new_transformer_note: document.getElementById('newTrNote').value,
