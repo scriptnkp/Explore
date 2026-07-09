@@ -102,24 +102,38 @@ function go(view, opts = {}) {
   if (view === 'dashboard') renderDashboard();
 }
 
-// ── Home: รายการหน่วยงาน (ไดนามิกจากชีท) ──
-async function renderHome() {
+// ── รายชื่อหน่วยงาน (ล็อกไว้ตายตัวจากคอลัมน์ A ของ PEA_Master ณ ตอนนี้ เพื่อให้หน้าแรกโหลดเร็ว ไม่ต้องเรียก API) ──
+// ถ้าในชีทมีการเพิ่มหน่วยงานใหม่ในอนาคต ต้องมาเพิ่มชื่อในลิสต์นี้เอง (ไม่ไดนามิกแล้ว) ต้องสะกดตรงกับคอลัมน์ A เป๊ะๆ
+const DEPARTMENTS = [
+  'กฟจ.นครพนม (L)',
+  'กฟส.ท่าอุเทน (XS)',
+  'กฟส.ธาตุพนม (S)',
+  'กฟส.นาแก (S)',
+  'กฟส.นาทม (XS)',
+  'กฟส.นาหว้า (XS)',
+  'กฟส.บ้านแพง (S)',
+  'กฟส.ปลาปาก (XS)',
+  'กฟส.โพนสวรรค์ (XS)',
+  'กฟส.เรณูนคร (XS)',
+  'กฟส.วังยาง (XS)',
+  'กฟส.ศรีสงคราม (XS)'
+];
+
+// ── Home: รายการหน่วยงาน (ค่าคงที่ ไม่เรียก API เพื่อให้โหลดไว) ──
+function renderHome() {
   $crumb.textContent = '';
-  loading();
-  try {
-    const depts = await apiGet('departments');
-    if (!depts.length) { $app.innerHTML = '<div class="empty">ยังไม่มีข้อมูลหน่วยงานในชีท</div>'; return; }
-    $app.innerHTML = `
-      <div class="card"><div class="section-title">เลือกหน่วยงาน</div>
-        <p class="hint">เลือกหน่วยงานเพื่อเริ่มสำรวจข้อมูลหม้อแปลง</p></div>
-      <div class="dept-grid">
-        ${depts.map(d => `<button class="dept-card" data-dept="${escapeHtml(d)}">
-            <span class="icon">🏢</span><span class="name">${escapeHtml(d)}</span>
-          </button>`).join('')}
-      </div>`;
-    $app.querySelectorAll('.dept-card').forEach(b =>
-      b.addEventListener('click', () => go('form', { dept: b.dataset.dept })));
-  } catch (err) { renderError(err); }
+  const depts = DEPARTMENTS;
+  if (!depts.length) { $app.innerHTML = '<div class="empty">ยังไม่มีข้อมูลหน่วยงาน</div>'; return; }
+  $app.innerHTML = `
+    <div class="card"><div class="section-title">เลือกหน่วยงาน</div>
+      <p class="hint">เลือกหน่วยงานเพื่อเริ่มสำรวจข้อมูลหม้อแปลง</p></div>
+    <div class="dept-grid">
+      ${depts.map(d => `<button class="dept-card" data-dept="${escapeHtml(d)}">
+          <span class="icon">🏢</span><span class="name">${escapeHtml(d)}</span>
+        </button>`).join('')}
+    </div>`;
+  $app.querySelectorAll('.dept-card').forEach(b =>
+    b.addEventListener('click', () => go('form', { dept: b.dataset.dept })));
 }
 
 function renderError(err) {
@@ -232,71 +246,44 @@ function renderPeaDetail() {
   const el = document.getElementById('peaDetail');
   if (!state.selectedPea) { el.innerHTML = ''; return; }
   const p = state.selectedPea;
-  
-  // เพิ่ม Input สำหรับพิกัดและปุ่ม GPS ปัจจุบัน
   el.innerHTML = `
     <div class="field"><label>ขนาดหม้อแปลง (kVA)</label>
       <input type="text" id="sizeInput" value="${escapeHtml(String(p.size ?? ''))}"></div>
     <div class="field"><label>ที่อยู่</label>
       <input type="text" id="addressInput" value="${escapeHtml(p.address ?? '')}"></div>
-    
+    <p class="hint">feeder: ${escapeHtml(p.feederid || '-')}</p>
     <div class="field-row">
-      <div class="field">
-        <label>ละติจูด (Latitude)</label>
-        <input type="text" id="latInput" value="${p.lat || ''}">
-      </div>
-      <div class="field">
-        <label>ลองจิจูด (Longitude)</label>
-        <input type="text" id="lonInput" value="${p.lon || ''}">
-      </div>
+      <div class="field"><label>ละติจูด (lat)</label>
+        <input type="text" id="latInput" value="${escapeHtml(String(p.lat ?? ''))}"></div>
+      <div class="field"><label>ลองจิจูด (lon)</label>
+        <input type="text" id="lonInput" value="${escapeHtml(String(p.lon ?? ''))}"></div>
     </div>
-    <button type="button" class="btn btn-outline" style="margin-bottom: 1rem; width: 100%;" onclick="getCurrentLocation()">
-      📍 ใช้พิกัด GPS ปัจจุบัน
-    </button>
-    <p class="hint">feeder: ${escapeHtml(p.feederid || '-')}</p>`;
+    <button type="button" class="btn btn-outline btn-sm" id="gpsBtn">📍 ดึงพิกัดปัจจุบัน (GPS)</button>
+    <p class="hint" id="gpsStatus"></p>`;
+  document.getElementById('gpsBtn').addEventListener('click', captureGps);
 }
 
-// ── ฟังก์ชันดึงพิกัด GPS (เพิ่มเติม) ──
-window.getCurrentLocation = function() {
-  if (navigator.geolocation) {
-    const latInput = document.getElementById('latInput');
-    const lonInput = document.getElementById('lonInput');
-    
-    latInput.value = "กำลังค้นหา...";
-    lonInput.value = "กำลังค้นหา...";
-    
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude.toFixed(7);
-        const lon = position.coords.longitude.toFixed(7);
-        latInput.value = lat;
-        lonInput.value = lon;
-        
-        // อัปเดตใน state ด้วย
-        if(state.selectedPea) {
-          state.selectedPea.lat = lat;
-          state.selectedPea.lon = lon;
-        }
-        toast('ดึงพิกัดสำเร็จ');
-      },
-      (error) => {
-        alert("ไม่สามารถดึงพิกัด GPS ได้: " + error.message);
-        latInput.value = state.selectedPea ? state.selectedPea.lat : "";
-        lonInput.value = state.selectedPea ? state.selectedPea.lon : "";
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  } else {
-    alert("เบราว์เซอร์ของคุณไม่รองรับระบบ GPS");
-  }
-};
+function captureGps() {
+  const status = document.getElementById('gpsStatus');
+  if (!navigator.geolocation) { status.textContent = 'อุปกรณ์นี้ไม่รองรับ GPS'; return; }
+  status.textContent = 'กำลังค้นหาตำแหน่ง...';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('latInput').value = pos.coords.latitude.toFixed(7);
+      document.getElementById('lonInput').value = pos.coords.longitude.toFixed(7);
+      status.textContent = `ดึงพิกัดสำเร็จ (ความแม่นยำ ~${Math.round(pos.coords.accuracy)} ม.)`;
+    },
+    (err) => { status.textContent = 'ดึงพิกัดไม่สำเร็จ: ' + err.message; },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
 
 function uploadBoxHtml(cat) {
   const id = `file_${cat}`;
   return `
     <label class="upload-box" for="${id}">
       เลือก / ถ่ายภาพ${PHOTO_LABEL[cat] ? ' ' + PHOTO_LABEL[cat] : ''} (อัปโหลดได้มากกว่า 1 รูป)<br>
-      <input type="file" id="${id}" accept="image/*" capture="environment" multiple>
+      <input type="file" id="${id}" accept="image/*" multiple>
     </label>
     <div class="thumbs" id="thumbs_${cat}"></div>`;
 }
@@ -339,8 +326,8 @@ async function submitForm() {
     'ที่อยู่': document.getElementById('addressInput').value,
     'ขนาด': document.getElementById('sizeInput').value,
     feederid: state.selectedPea.feederid,
-    lat: document.getElementById('latInput') ? document.getElementById('latInput').value : state.selectedPea.lat,
-    lon: document.getElementById('lonInput') ? document.getElementById('lonInput').value : state.selectedPea.lon,
+    lat: document.getElementById('latInput').value,
+    lon: document.getElementById('lonInput').value,
     new_transformer_code: document.getElementById('newTrCode').value,
     new_transformer_size: document.getElementById('newTrSize').value,
     new_transformer_note: document.getElementById('newTrNote').value,
@@ -402,42 +389,51 @@ async function renderDashboard() {
   loading();
   try {
     const rows = await apiGet('mapData');
-    $app.innerHTML = `<div class="card" style="padding:0;overflow:hidden;"><div id="map" style="height: 450px; z-index: 1;"></div></div>
-      <p class="hint" style="text-align:center;">แสดงตำแหน่งจากข้อมูลที่สำรวจแล้ว (${rows.length} รายการ)</p>`;
-    
-    // ตั้งค่าพิกัดศูนย์กลางหากมีหรือไม่มีข้อมูล (ค่าเริ่มต้นเป็นนครพนม/กทม)
-    const defaultCenter = rows.length ? [parseFloat(rows[0].lat), parseFloat(rows[0].lon)] : [13.7563, 100.5018];
-    const map = L.map('map').setView(defaultCenter, rows.length ? 12 : 6);
-    
+    const sizes = [...new Set(rows.map(r => String(r['ขนาด'] || '').trim()).filter(Boolean))]
+      .sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0));
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="field" style="margin-bottom:0;">
+          <label>กรองตามขนาดหม้อแปลง (kVA)</label>
+          <select id="sizeFilter">
+            <option value="">ทั้งหมด (${rows.length} รายการ)</option>
+            ${sizes.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)} kVA</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;"><div id="map"></div></div>
+      <p class="hint" id="mapCount" style="text-align:center;">แสดงตำแหน่งจากข้อมูลที่สำรวจแล้ว (${rows.length} รายการ)</p>`;
+
+    const map = L.map('map').setView([13.7563, 100.5018], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
     }).addTo(map);
+    const markersLayer = L.layerGroup().addTo(map);
 
-    const bounds = [];
-    rows.forEach(r => {
-      const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
-      // เช็กให้ชัวร์ว่าค่าตัวเลขถูกต้อง
-      if (!lat || !lon || isNaN(lat) || isNaN(lon)) return;
-      
-      bounds.push([lat, lon]);
-      const firstPhoto = (r.photos_transformer || '').split(',').filter(Boolean)[0];
-      
-      L.marker([lat, lon]).addTo(map).bindPopup(`
-        <div style="font-family: sans-serif;">
-          <h4 style="margin: 0 0 5px 0; color: #1e3a8a; font-weight: bold;">PEA ID: ${escapeHtml(r['PEA'])}</h4>
-          <p style="margin: 3px 0; font-size: 12px;"><b>หน่วยงาน:</b> ${escapeHtml(r['หน่วยงาน'])}</p>
-          <p style="margin: 3px 0; font-size: 12px;"><b>ที่อยู่:</b> ${escapeHtml(r['ที่อยู่'] || '-')}</p>
-          ${firstPhoto ? `<img class="popup-thumb" src="${firstPhoto}" style="width: 100%; height: auto; max-height: 120px; object-fit: cover; border-radius: 4px; margin-top: 8px;">` : ''}
-        </div>
-      `);
-    });
-    
-    if (bounds.length) {
-      map.fitBounds(bounds, { padding: [30, 30] });
+    function drawMarkers(items) {
+      markersLayer.clearLayers();
+      const bounds = [];
+      items.forEach(r => {
+        const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
+        if (!lat || !lon) return;
+        bounds.push([lat, lon]);
+        const firstPhoto = (r.photos_transformer || '').split(',').filter(Boolean)[0];
+        L.marker([lat, lon]).addTo(markersLayer).bindPopup(`
+          <b>${escapeHtml(r['PEA'])}</b> · ${escapeHtml(String(r['ขนาด'] || '-'))} kVA<br>
+          ${escapeHtml(r['หน่วยงาน'])}<br>${escapeHtml(r['ที่อยู่'] || '')}
+          ${firstPhoto ? `<br><img class="popup-thumb" src="${firstPhoto}">` : ''}`);
+      });
+      if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+      document.getElementById('mapCount').textContent = `แสดงตำแหน่งจากข้อมูลที่สำรวจแล้ว (${items.length} รายการ)`;
     }
-  } catch (err) { 
-    renderError(err); 
-  }
+
+    drawMarkers(rows);
+    document.getElementById('sizeFilter').addEventListener('change', (e) => {
+      const val = e.target.value;
+      drawMarkers(val ? rows.filter(r => String(r['ขนาด'] || '').trim() === val) : rows);
+    });
+  } catch (err) { renderError(err); }
 }
 
 // ── Utils ──
