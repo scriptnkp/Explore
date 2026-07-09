@@ -155,11 +155,12 @@ async function renderForm({ dept, editRecord } = {}) {
       <div class="section-title">${editRecord ? 'แก้ไขข้อมูลสำรวจ' : 'แบบสำรวจข้อมูล'}</div>
       <div class="field">
         <label>ค้นหา / เลือก PEA</label>
-        <div class="search-box">
-          <input type="search" id="peaSearch" placeholder="พิมพ์รหัส PEA หรือที่อยู่..."
-            value="${state.selectedPea ? escapeHtml(state.selectedPea.pea) : ''}">
-        </div>
-        <div class="pea-result" id="peaResult"></div>
+        <input type="text" id="peaSearch" list="peaOptions" autocomplete="off"
+          placeholder="พิมพ์หรือเลือกรหัส PEA..."
+          value="${state.selectedPea ? escapeHtml(state.selectedPea.pea) : ''}">
+        <datalist id="peaOptions">
+          ${state.peaList.map(p => `<option value="${escapeHtml(peaOptionLabel(p))}">`).join('')}
+        </datalist>
       </div>
       <div id="peaDetail"></div>
     </div>
@@ -186,8 +187,6 @@ async function renderForm({ dept, editRecord } = {}) {
         <div class="field"><label>ขนาด (kVA)</label>
           <input type="text" id="newTrSize" value="${editRecord ? escapeHtml(editRecord.new_transformer_size || '') : ''}"></div>
       </div>
-      <div class="field"><label>หมายเหตุหม้อแปลงใหม่</label>
-        <textarea id="newTrNote">${editRecord ? escapeHtml(editRecord.new_transformer_note || '') : ''}</textarea></div>
       <label class="section-title" style="font-size:.9rem;">📷 ภาพหม้อแปลงใหม่</label>
       ${uploadBoxHtml('new_transformer')}
     </div>
@@ -196,6 +195,7 @@ async function renderForm({ dept, editRecord } = {}) {
       <div class="field"><label>หมายเหตุ</label>
         <textarea id="noteInput">${editRecord ? escapeHtml(editRecord.note || '') : ''}</textarea></div>
       <button class="btn btn-primary" id="submitBtn">${editRecord ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูลสำรวจ'}</button>
+      <div style="height:8px"></div>
     </div>`;
 
   renderPeaDetail();
@@ -203,28 +203,21 @@ async function renderForm({ dept, editRecord } = {}) {
   bindUploadHandlers();
 
   const searchEl = document.getElementById('peaSearch');
-  searchEl.addEventListener('input', () => renderPeaResults(searchEl.value));
-  if (!editRecord) renderPeaResults('');
+  searchEl.addEventListener('input', () => selectPeaFromInput(searchEl.value));
+  if (editRecord) searchEl.value = peaOptionLabel(state.selectedPea);
 
   document.getElementById('submitBtn').addEventListener('click', submitForm);
 }
 
-function renderPeaResults(q) {
-  const el = document.getElementById('peaResult');
-  const list = state.peaList.filter(p =>
-    !q || p.pea.toLowerCase().includes(q.toLowerCase()) || (p.address || '').toLowerCase().includes(q.toLowerCase()));
-  if (!list.length) { el.innerHTML = '<div class="empty">ไม่พบรายการ</div>'; return; }
-  el.innerHTML = list.slice(0, 60).map(p => `
-    <div class="pea-item ${state.selectedPea && state.selectedPea.pea === p.pea ? 'selected' : ''}" data-pea="${escapeHtml(p.pea)}">
-      <b>${escapeHtml(p.pea)}</b> · ${escapeHtml(String(p.size))} kVA
-      <small>${escapeHtml(p.address || '-')} · feeder: ${escapeHtml(p.feederid || '-')}</small>
-    </div>`).join('');
-  el.querySelectorAll('.pea-item').forEach(item => item.addEventListener('click', () => {
-    state.selectedPea = state.peaList.find(p => p.pea === item.dataset.pea);
-    document.getElementById('peaSearch').value = state.selectedPea.pea;
-    renderPeaResults(document.getElementById('peaSearch').value);
-    renderPeaDetail();
-  }));
+// รวมข้อความค้นหา (รหัส PEA + ขนาด + ที่อยู่) ไว้ในตัวเลือกเดียว ให้พิมพ์ค้นด้วยคำไหนก็เจอ
+function peaOptionLabel(p) {
+  return `${p.pea} · ${p.size ?? '-'} kVA · ${p.address || '-'}`;
+}
+
+function selectPeaFromInput(value) {
+  const code = value.split('·')[0].trim();
+  const match = state.peaList.find(p => p.pea === code || peaOptionLabel(p) === value.trim());
+  if (match) { state.selectedPea = match; renderPeaDetail(); }
 }
 
 function renderPeaDetail() {
@@ -315,7 +308,6 @@ async function submitForm() {
     lon: document.getElementById('lonInput').value,
     new_transformer_code: document.getElementById('newTrCode').value,
     new_transformer_size: document.getElementById('newTrSize').value,
-    new_transformer_note: document.getElementById('newTrNote').value,
     note: document.getElementById('noteInput').value
   };
   PHOTO_CATS.forEach(cat => {
