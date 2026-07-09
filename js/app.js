@@ -114,11 +114,17 @@ function renderHome() {
       <p class="hint">เลือกหน่วยงานเพื่อเริ่มสำรวจข้อมูลหม้อแปลง</p></div>
     <div class="dept-grid">
       ${depts.map(d => `<button class="dept-card" data-dept="${escapeHtml(d)}">
-          <span class="icon">🏢</span><span class="name">${escapeHtml(d)}</span>
+          <span class="tier ${deptTier(d)}">${deptTier(d)}</span><span class="name">${escapeHtml(d)}</span>
         </button>`).join('')}
     </div>`;
   $app.querySelectorAll('.dept-card').forEach(b =>
     b.addEventListener('click', () => go('form', { dept: b.dataset.dept })));
+}
+
+// ดึงระดับหน่วยงาน เช่น "กฟส.นาแก (S)" → "S" เพื่อแสดง badge สีต่างกันตามขนาด
+function deptTier(name) {
+  const m = name.match(/\(([^)]+)\)/);
+  return m ? m[1] : '·';
 }
 
 function renderError(err) {
