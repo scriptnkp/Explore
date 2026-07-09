@@ -1,7 +1,7 @@
 /* ============================================================
    สำรวจหม้อแปลง — โทนไฟฟ้า/งานภาคสนาม
-   Signature: "hazard stripe" (แถบเฉียงเหลือง-ดำแบบเทปไฟฟ้าเตือนอันตราย)
-   ใช้เป็นจุดเน้นเดียวที่ซ้ำเสมอ: ใต้ topbar, ใต้ปุ่มหลัก, เส้นใต้แท็บที่ active
+   ฟอนต์ไทยใช้ Noto Sans Thai ทั้งหมด (ฟอนต์ทางเลือกอื่นเรนเดอร์สระ/วรรณยุกต์ไทยไม่สมบูรณ์)
+   IBM Plex Mono ใช้เฉพาะจุดที่เป็นตัวเลข/รหัสภาษาอังกฤษล้วน เช่น badge ระดับหน่วยงาน
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -25,9 +25,9 @@
   --shadow-sm:  0 1px 3px rgba(46,27,84,.08);
   --shadow-md:  0 6px 20px rgba(46,27,84,.10);
 
-  --font-display: 'Chakra Petch', 'Noto Sans Thai', sans-serif;
+  --font-display: 'Noto Sans Thai', system-ui, sans-serif;
   --font-body:    'Noto Sans Thai', system-ui, sans-serif;
-  --font-mono:    'IBM Plex Mono', 'Noto Sans Thai', monospace;
+  --font-mono:    'IBM Plex Mono', monospace; /* ใช้เฉพาะข้อความอังกฤษ/ตัวเลขล้วน ห้ามใช้กับข้อความไทย */
 }
 
 html,body{ margin:0; padding:0; background:var(--surface); color:var(--ink);
@@ -49,19 +49,13 @@ code, .mono{ font-family:var(--font-mono); letter-spacing:.01em; }
 @media (min-width:768px){ .app{ padding:28px; max-width:900px; } }
 @media (min-width:1024px){ .app{ max-width:1080px; } }
 
-/* Signature motif: แถบเทปเฉียงเหลือง-ดำ */
-.hazard-stripe{
-  height:6px; width:100%;
-  background:repeating-linear-gradient(-45deg, var(--volt) 0 10px, var(--purple-deep) 10px 20px);
-  position:sticky; top:0; z-index:21;
-}
 
 .topbar{ position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between;
   background:linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 100%); color:#fff;
   padding:15px 18px; box-shadow:var(--shadow-md); }
 .brand{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.1rem; letter-spacing:.01em; }
 .brand-mark{ font-size:1.3rem; filter:drop-shadow(0 0 6px rgba(255,197,61,.7)); }
-.crumb{ font-family:var(--font-mono); font-size:.82rem; opacity:.9; max-width:55%; text-align:right;
+.crumb{ font-size:.82rem; opacity:.9; max-width:55%; text-align:right;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 .tabbar{ position:fixed; bottom:0; left:0; right:0; z-index:20; display:flex; background:#fff;
@@ -74,7 +68,7 @@ code, .mono{ font-family:var(--font-mono); letter-spacing:.01em; }
 .tab-btn.active{ color:var(--purple); }
 .tab-btn.active::after{
   content:''; position:absolute; bottom:-1px; left:22%; right:22%; height:3px; border-radius:3px;
-  background:linear-gradient(90deg, var(--volt), var(--purple)); }
+  background:var(--volt-deep); }
 
 /* === Components === */
 .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow-sm);
@@ -125,7 +119,6 @@ code, .mono{ font-family:var(--font-mono); letter-spacing:.01em; }
 .btn:disabled{ opacity:.5; transform:none; }
 
 /* คอมโบค้นหา + เลือก PEA (input + datalist รวมกันช่องเดียว) */
-#peaSearch{ font-family:var(--font-mono); }
 
 .upload-box{ border:2px dashed var(--line); border-radius:var(--radius-sm); padding:20px 16px; text-align:center;
   color:var(--muted); font-size:.9rem; background:linear-gradient(180deg, #fff, var(--surface));
@@ -139,7 +132,7 @@ code, .mono{ font-family:var(--font-mono); letter-spacing:.01em; }
   border-radius:50%; width:24px; height:24px; min-height:auto; font-size:.8rem; line-height:1; backdrop-filter:blur(2px); }
 
 .history-item{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-.history-item .meta{ font-size:.82rem; color:var(--muted); margin-top:3px; font-family:var(--font-mono); }
+.history-item .meta{ font-size:.82rem; color:var(--muted); margin-top:3px; }
 .badge{ display:inline-block; background:var(--purple-soft); color:var(--purple-deep); font-size:.72rem;
   font-weight:700; border-radius:6px; padding:3px 9px; margin-right:4px; font-family:var(--font-display); }
 
