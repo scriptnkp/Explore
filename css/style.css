@@ -139,6 +139,13 @@ code, .mono{ font-family:var(--font-mono); letter-spacing:.01em; }
 #map{ width:100%; height:60vh; min-height:360px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-md); }
 .popup-thumb{ width:100%; max-width:180px; border-radius:8px; margin-top:6px; }
 .leaflet-popup-content{ font-family:var(--font-body); }
+.popup-nav{ display:inline-block; margin-top:8px; color:var(--purple); font-weight:700; text-decoration:none; }
+.popup-nav:hover{ text-decoration:underline; }
+
+.map-legend{ display:flex; gap:18px; align-items:center; flex-wrap:wrap; font-size:.85rem; color:var(--muted); padding:12px 16px; }
+.map-legend .dot{ display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+.map-legend .dot-master{ background:#B9B3D4; border:1.5px solid #6E668A; }
+.map-legend .dot-done{ background:var(--purple); border:1.5px solid var(--purple-deep); }
 
 .toast{ position:fixed; left:50%; bottom:96px; transform:translate(-50%,20px); background:var(--ink); color:#fff;
   padding:11px 20px; border-radius:24px; font-size:.9rem; opacity:0; pointer-events:none; transition:.25s; z-index:50;

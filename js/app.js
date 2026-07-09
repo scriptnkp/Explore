@@ -371,52 +371,79 @@ async function renderDashboard() {
   $crumb.textContent = '';
   loading();
   try {
-    const rows = await apiGet('mapData');
-    const sizes = [...new Set(rows.map(r => String(r['ขนาด'] || '').trim()).filter(Boolean))]
+    const [surveyed, master] = await Promise.all([apiGet('mapData'), apiGet('masterMap')]);
+    const sizes = [...new Set(surveyed.map(r => String(r['ขนาด'] || '').trim()).filter(Boolean))]
       .sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0));
 
     $app.innerHTML = `
       <div class="card">
         <div class="field" style="margin-bottom:0;">
-          <label>กรองตามขนาดหม้อแปลง (kVA)</label>
+          <label>กรองตามขนาดหม้อแปลงที่สำรวจแล้ว (kVA)</label>
           <select id="sizeFilter">
-            <option value="">ทั้งหมด (${rows.length} รายการ)</option>
+            <option value="">ทั้งหมด (${surveyed.length} รายการที่สำรวจแล้ว)</option>
             ${sizes.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)} kVA</option>`).join('')}
           </select>
         </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden;"><div id="map"></div></div>
-      <p class="hint" id="mapCount" style="text-align:center;">แสดงตำแหน่งจากข้อมูลที่สำรวจแล้ว (${rows.length} รายการ)</p>`;
+      <div class="card map-legend">
+        <span><i class="dot dot-master"></i> จุดทั้งหมดในระบบ (${master.length})</span>
+        <span><i class="dot dot-done"></i> สำรวจแล้ว (${surveyed.length})</span>
+      </div>`;
 
     const map = L.map('map').setView([13.7563, 100.5018], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
     }).addTo(map);
-    const markersLayer = L.layerGroup().addTo(map);
 
-    function drawMarkers(items) {
-      markersLayer.clearLayers();
+    const masterLayer = L.layerGroup().addTo(map);
+    const doneLayer = L.layerGroup().addTo(map);
+
+    // จุดทั้งหมดที่มีอยู่แล้วใน PEA_Master (ยังไม่ได้สำรวจ) — วงกลมเล็กสีเทา
+    master.forEach(r => {
+      const lat = parseFloat(r.gis_lat), lon = parseFloat(r.gis_lon);
+      if (!lat || !lon) return;
+      L.circleMarker([lat, lon], { radius: 6, color: '#6E668A', weight: 1.5, fillColor: '#B9B3D4', fillOpacity: .8 })
+        .addTo(masterLayer)
+        .bindPopup(`
+          <b>${escapeHtml(r['PEA'])}</b> · ${escapeHtml(String(r['ขนาด'] || '-'))} kVA<br>
+          ${escapeHtml(r['หน่วยงาน'])}<br>${escapeHtml(r['ที่อยู่'] || '')}
+          <br>${gmapsLink(lat, lon)}`);
+    });
+
+    function drawSurveyed(items) {
+      doneLayer.clearLayers();
       const bounds = [];
       items.forEach(r => {
         const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
         if (!lat || !lon) return;
         bounds.push([lat, lon]);
         const firstPhoto = (r.photos_transformer || '').split(',').filter(Boolean)[0];
-        L.marker([lat, lon]).addTo(markersLayer).bindPopup(`
+        L.marker([lat, lon]).addTo(doneLayer).bindPopup(`
           <b>${escapeHtml(r['PEA'])}</b> · ${escapeHtml(String(r['ขนาด'] || '-'))} kVA<br>
           ${escapeHtml(r['หน่วยงาน'])}<br>${escapeHtml(r['ที่อยู่'] || '')}
-          ${firstPhoto ? `<br><img class="popup-thumb" src="${firstPhoto}">` : ''}`);
+          ${firstPhoto ? `<br><img class="popup-thumb" src="${firstPhoto}">` : ''}
+          <br>${gmapsLink(lat, lon)}`);
       });
       if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
-      document.getElementById('mapCount').textContent = `แสดงตำแหน่งจากข้อมูลที่สำรวจแล้ว (${items.length} รายการ)`;
+      else if (master.length) {
+        const mb = master.filter(r => r.gis_lat && r.gis_lon).map(r => [parseFloat(r.gis_lat), parseFloat(r.gis_lon)]);
+        if (mb.length) map.fitBounds(mb, { padding: [30, 30] });
+      }
     }
 
-    drawMarkers(rows);
+    drawSurveyed(surveyed);
     document.getElementById('sizeFilter').addEventListener('change', (e) => {
       const val = e.target.value;
-      drawMarkers(val ? rows.filter(r => String(r['ขนาด'] || '').trim() === val) : rows);
+      drawSurveyed(val ? surveyed.filter(r => String(r['ขนาด'] || '').trim() === val) : surveyed);
     });
   } catch (err) { renderError(err); }
+}
+
+// ลิงก์นำทางไป Google Maps จากพิกัด
+function gmapsLink(lat, lon) {
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+  return `<a href="${url}" target="_blank" rel="noopener" class="popup-nav">🧭 นำทางไปที่นี่</a>`;
 }
 
 // ── Utils ──
