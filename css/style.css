@@ -120,7 +120,7 @@ code, .mono{ font-family:var(--font-mono); letter-spacing:.01em; }
 
 /* คอมโบค้นหา + เลือก PEA (input + datalist รวมกันช่องเดียว) */
 
-.upload-box{ border:2px dashed var(--line); border-radius:var(--radius-sm); padding:12px 14px; text-align:center;
+.upload-box{ display:block; border:2px dashed var(--line); border-radius:var(--radius-sm); padding:12px 14px; text-align:center;
   color:var(--muted); font-size:.85rem; line-height:1.4; background:linear-gradient(180deg, #fff, var(--surface));
   transition:border-color .15s, background .15s; }
 .upload-box:hover{ border-color:var(--volt-deep); background:#fffdf5; }

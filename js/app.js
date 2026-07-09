@@ -372,17 +372,26 @@ async function renderDashboard() {
   loading();
   try {
     const [surveyed, master] = await Promise.all([apiGet('mapData'), apiGet('masterMap')]);
-    const sizes = [...new Set(surveyed.map(r => String(r['ขนาด'] || '').trim()).filter(Boolean))]
+    const sizes = [...new Set([...master, ...surveyed].map(r => String(r['ขนาด'] || '').trim()).filter(Boolean))]
       .sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0));
 
     $app.innerHTML = `
       <div class="card">
-        <div class="field" style="margin-bottom:0;">
-          <label>กรองตามขนาดหม้อแปลงที่สำรวจแล้ว (kVA)</label>
-          <select id="sizeFilter">
-            <option value="">ทั้งหมด (${surveyed.length} รายการที่สำรวจแล้ว)</option>
-            ${sizes.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)} kVA</option>`).join('')}
-          </select>
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0;">
+            <label>กรองตามหน่วยงาน</label>
+            <select id="deptFilter">
+              <option value="">ทุกหน่วยงาน</option>
+              ${DEPARTMENTS.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>กรองตามขนาด (kVA)</label>
+            <select id="sizeFilter">
+              <option value="">ทุกขนาด</option>
+              ${sizes.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)} kVA</option>`).join('')}
+            </select>
+          </div>
         </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden;"><div id="map"></div></div>
@@ -399,17 +408,19 @@ async function renderDashboard() {
     const masterLayer = L.layerGroup().addTo(map);
     const doneLayer = L.layerGroup().addTo(map);
 
-    // จุดทั้งหมดที่มีอยู่แล้วใน PEA_Master (ยังไม่ได้สำรวจ) — วงกลมเล็กสีเทา
-    master.forEach(r => {
-      const lat = parseFloat(r.gis_lat), lon = parseFloat(r.gis_lon);
-      if (!lat || !lon) return;
-      L.circleMarker([lat, lon], { radius: 6, color: '#6E668A', weight: 1.5, fillColor: '#B9B3D4', fillOpacity: .8 })
-        .addTo(masterLayer)
-        .bindPopup(`
-          <b>${escapeHtml(r['PEA'])}</b> · ${escapeHtml(String(r['ขนาด'] || '-'))} kVA<br>
-          ${escapeHtml(r['หน่วยงาน'])}<br>${escapeHtml(r['ที่อยู่'] || '')}
-          <br>${gmapsLink(lat, lon)}`);
-    });
+    function drawMaster(items) {
+      masterLayer.clearLayers();
+      items.forEach(r => {
+        const lat = parseFloat(r.gis_lat), lon = parseFloat(r.gis_lon);
+        if (!lat || !lon) return;
+        L.circleMarker([lat, lon], { radius: 6, color: '#6E668A', weight: 1.5, fillColor: '#B9B3D4', fillOpacity: .8 })
+          .addTo(masterLayer)
+          .bindPopup(`
+            <b>${escapeHtml(r['PEA'])}</b> · ${escapeHtml(String(r['ขนาด'] || '-'))} kVA<br>
+            ${escapeHtml(r['หน่วยงาน'])}<br>${escapeHtml(r['ที่อยู่'] || '')}
+            <br>${gmapsLink(lat, lon)}`);
+      });
+    }
 
     function drawSurveyed(items) {
       doneLayer.clearLayers();
@@ -425,18 +436,26 @@ async function renderDashboard() {
           ${firstPhoto ? `<br><img class="popup-thumb" src="${firstPhoto}">` : ''}
           <br>${gmapsLink(lat, lon)}`);
       });
-      if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
-      else if (master.length) {
-        const mb = master.filter(r => r.gis_lat && r.gis_lon).map(r => [parseFloat(r.gis_lat), parseFloat(r.gis_lon)]);
-        if (mb.length) map.fitBounds(mb, { padding: [30, 30] });
-      }
+      return bounds;
     }
 
-    drawSurveyed(surveyed);
-    document.getElementById('sizeFilter').addEventListener('change', (e) => {
-      const val = e.target.value;
-      drawSurveyed(val ? surveyed.filter(r => String(r['ขนาด'] || '').trim() === val) : surveyed);
-    });
+    function applyFilter() {
+      const dept = document.getElementById('deptFilter').value;
+      const size = document.getElementById('sizeFilter').value;
+      const match = r => (!dept || r['หน่วยงาน'] === dept) && (!size || String(r['ขนาด'] || '').trim() === size);
+
+      const filteredMaster = master.filter(match);
+      const filteredSurveyed = surveyed.filter(match);
+      drawMaster(filteredMaster);
+      const doneBounds = drawSurveyed(filteredSurveyed);
+      const masterBounds = filteredMaster.filter(r => r.gis_lat && r.gis_lon).map(r => [parseFloat(r.gis_lat), parseFloat(r.gis_lon)]);
+      const allBounds = doneBounds.concat(masterBounds);
+      if (allBounds.length) map.fitBounds(allBounds, { padding: [30, 30] });
+    }
+
+    applyFilter();
+    document.getElementById('deptFilter').addEventListener('change', applyFilter);
+    document.getElementById('sizeFilter').addEventListener('change', applyFilter);
   } catch (err) { renderError(err); }
 }
 
